@@ -1,4 +1,4 @@
-mport os
+import os
 import random
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
