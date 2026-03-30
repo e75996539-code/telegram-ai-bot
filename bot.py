@@ -1,74 +1,44 @@
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
-from google import genai
+import os
 import random
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
+from google import genai
 
-# 🔑 API KEYS (3 daal)
-API_KEYS = [
-    "AIzaSyDa9quuDFktPnTMLJUnIjwuxQvcC7nZbpU",
-    "AIzaSyDG78OfBi2f76G1BVRsRAUHABYl7DoJBRo",
-    "AIzaSyDG78OfBi2f76G1BVRsRAUHABYl7DoJBRo"
-]
+# 🔐 Environment variables (Render se aayenge)
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-BOT_TOKEN = "8717190254:AAH-1BmJ4A1P27rlDXG7nby6ll42OUH1WUI"
+# 🤖 Gemini client
+client = genai.Client(api_key=GEMINI_API_KEY)
 
-# 👤 User usage tracking
-user_usage = {}
-
-# 🔄 Random client generator
-def get_client():
-    key = random.choice(API_KEYS)
-    return genai.Client(api_key=key)
-
-# ✂️ Split long messages
-def split_message(text, limit=4000):
-    return [text[i:i+limit] for i in range(0, len(text), limit)]
-
-# 🚀 /start command
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hello bhai 😎\nMain tera AI bot hoon 🤖\nKuch bhi puch le!")
-
-# 💬 Main handler
+# 💬 Message handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
     user_message = update.message.text
 
-    # 🧠 user limit check
-    if user_id not in user_usage:
-        user_usage[user_id] = 0
-
-    if user_usage[user_id] >= 6:
-        await update.message.reply_text("Bhai aaj ka limit khatam ho gaya 😅\nKal fir aana 👋")
-        return
-
-    user_usage[user_id] += 1
-
     try:
-        client = get_client()
-
-        # 🧠 Short answer prompt
         response = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=f"Answer in short and clear (max 150 words): {user_message}"
+            contents=user_message
         )
 
         reply = response.text
 
-        # ✂️ Split if long
-        parts = split_message(reply)
-
-        for part in parts:
-            await update.message.reply_text(part)
-
     except Exception as e:
-        await update.message.reply_text("Thoda error aa gaya bhai 😅\nBaad me try karna")
+        reply = "⚠️ Error aa gaya bhai, thoda baad me try kar"
 
-# 🚀 App setup
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+    # Telegram message limit fix (4000 chars)
+    for i in range(0, len(reply), 4000):
+        await update.message.reply_text(reply[i:i+4000])
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+# 🚀 Main function
+def main():
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-print("Bot chal raha hai... 💀🔥")
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-app.run_polling()
+    print("Bot chal raha hai...")
+
+    app.run_polling()
+
+if _name_ == "_main_":
+    main()
